@@ -1,0 +1,43 @@
+#!/bin/bash
+ 
+# Based on https://gist.github.com/2206527
+ 
+
+# Basic variables
+mysqlpass=<%= @mysqlpass %>
+mysqluser="<%= @mysqluser %>"
+bucket="s3://<%= @s3cmdbucketname %>"
+ 
+# Timestamp (sortable AND readable)
+stamp=`date +"%s_%A_%d_%B_%Y_%H%M"`
+ 
+# List all the databases
+databases=`mysql -u $mysqluser -p$mysqlpass -e "SHOW DATABASES;" | tr -d "| " | grep -v "\(Database\|information_schema\|performance_schema\|mysql\|test\)"`
+ 
+
+ 
+# Loop the databases
+for db in $databases; do
+ 
+  # Define our filenames
+  filename="$stamp-$db.sql.gz"
+  tmpfile="/tmp/$filename"
+  object="$bucket/<%= node[:opsworks][:stack][:name] %>-$db/$filename"
+ 
+ 
+ 
+  # Dump and zip
+ 
+  mysqldump -u $mysqluser -p$mysqlpass --force --opt "$db" | gzip -c > "$tmpfile"
+ 
+  if [ "$?" -eq "0" ]; then
+    # Upload
+    s3cmd put "$tmpfile" "$object"
+  else 
+    echo "Failed to dump $db"
+  fi
+ 
+  # Delete
+  rm -f "$tmpfile"
+ 
+done;

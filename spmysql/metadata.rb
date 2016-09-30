@@ -1,0 +1,6 @@
+maintainer       "Spiral Solutions Ltd."
+maintainer_email "yosi@spiralsolutions.com"
+license          "All rights reserved"
+description      "Installs/Configures mysql backup to s3 recepies for spiral on AWS"
+version          "0.0.1"
+depends          "sp-s3cmd"

@@ -1,0 +1,44 @@
+#!/bin/bash
+# Based on https://gist.github.com/2206527
+
+if [ -z $1 ]; then
+    echo "File to restore from not specified"
+    exit 1
+fi
+
+# Basic variables
+mysqlpass=<%= @mysqlrootpass %>
+bucket="s3://<%= @s3cmdbucketname %>/$1"
+echo "Bucket:" $bucket
+
+
+if [ ! -d "/tmp/s3mysqlrestore" ]; then
+    mkdir /tmp/s3mysqlrestore
+fi
+
+cd /tmp/s3mysqlrestore
+s3cmd get $bucket
+
+#extract file
+ls | grep "sql.gz" | xargs -n 1 -P 10 -I {} gunzip {} .
+
+#restore dump file
+DUMPS=`find . -name '*.sql'`
+
+for dump_file in $DUMPS; do
+    filename=$(basename "$dump_file")
+    echo "Dump File: "$filename
+    db="${filename%.*}"
+    echo "Database: "$db
+    cmd="mysql -u root -p$mysqlpass $db < $filename"
+    echo "Running command: $cmd"
+    eval $cmd
+    if [ $? == "0" ]; then
+       echo "Done."
+    else
+       echo "Failed to import DB: $db"
+    fi
+    echo "Removing dump file... $dump_file"
+    rm $dump_file
+
+done
